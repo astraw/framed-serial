@@ -1,0 +1,22 @@
+[package]
+name = "framed-serial"
+version = "0.1.0"
+authors = ["Andrew Straw <strawman@astraw.com>"]
+license = "MIT/Apache-2.0"
+homepage = "https://github.com/astraw/framed-serial"
+repository = "https://github.com/astraw/framed-serial"
+documentation = "https://docs.rs/framed-serial/"
+keywords = ["serial", "embedded", "frames", "no_std"]
+readme = "README.md"
+
+[dependencies]
+embedded-serial = "0.3"
+byteorder = { version = "1", default-features = false }
+serial = {version = "0.3", optional = true }
+
+[features]
+default = ["std"]
+
+std = ["serial"]
+collections = []
+device_connected = ["std"]
