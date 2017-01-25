@@ -11,9 +11,9 @@ See the [documentation](https://docs.rs/framed-serial/).
 
 ## Potential improvements
 
-[ ] use a more elaborate algorithm, such as [COBS](https://crates.io/crates/cobs)
-[ ] detect and recover from errors in the data received, e.g. with checksums
-[ ] base async code on [futures-rs](https://github.com/alexcrichton/futures-rs)
+- [ ] use a more elaborate algorithm, such as [COBS](https://crates.io/crates/cobs)
+- [ ] detect and recover from errors in the data received, e.g. with checksums
+- [ ] base async code on [futures-rs](https://github.com/alexcrichton/futures-rs)
 
 ## Running the tests
 
