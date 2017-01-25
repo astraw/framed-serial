@@ -1,5 +1,6 @@
 [package]
 name = "framed-serial"
+description = "Add frames to serial connections. Useful for embedded devices. Can be built with no_std."
 version = "0.1.0"
 authors = ["Andrew Straw <strawman@astraw.com>"]
 license = "MIT/Apache-2.0"
