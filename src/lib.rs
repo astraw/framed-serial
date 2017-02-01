@@ -20,10 +20,13 @@
 //! Example usage:
 //!
 //! ```
+//! #[cfg(feature = "std")]
 //! extern crate serial;
 //! extern crate framed_serial;
+//! #[cfg(feature = "std")]
 //! use serial::SerialPort;
 //!
+//! #[cfg(feature = "std")]
 //! fn wait_for_frame() {
 //!
 //!     let mut raw = serial::open("/dev/ttyACM0").expect("open serial port");
