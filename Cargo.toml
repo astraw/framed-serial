@@ -11,7 +11,7 @@ keywords = ["serial", "embedded", "frames", "no_std"]
 readme = "README.md"
 
 [dependencies]
-embedded-serial = "0.3"
+embedded-serial = "0.4"
 byteorder = { version = "1", default-features = false }
 serial = {version = "0.3", optional = true }
 

@@ -28,15 +28,15 @@ impl<T> embedded_serial::NonBlockingRx for SerialWrap<T>
     where T: SerialPort,
 {
     type Error=();
-    fn getc_try(&mut self) -> Result<u8, Self::Error> {
+    fn getc_try(&mut self) -> Result<Option<u8>, Self::Error> {
         let mut buf: [u8;1] = [0];
 
         match self.inner.read(&mut buf) {
-            Ok(1) => Ok(buf[0]),
+            Ok(1) => Ok(Some(buf[0])),
             Ok(n_bytes) => panic!("no error, but {} bytes read.", n_bytes),
             Err(e) => {
                 match e.kind() {
-                    std::io::ErrorKind::TimedOut => {Err(())},
+                    std::io::ErrorKind::TimedOut => {Ok(None)},
                     _ => panic!("Can't read, err {:?}", e),
                 }
             },
@@ -48,7 +48,7 @@ impl<T> embedded_serial::NonBlockingTx for SerialWrap<T>
     where T: SerialPort,
 {
     type Error=();
-    fn putc_try(&mut self, ch: u8) -> Result<(), Self::Error> {
+    fn putc_try(&mut self, ch: u8) -> Result<Option<()>, Self::Error> {
         let buf: [u8; 1] = [ch];
         loop {
             match self.inner.write(&buf) {
@@ -57,6 +57,6 @@ impl<T> embedded_serial::NonBlockingTx for SerialWrap<T>
                 Err(e) => {println!("write error {:?}",e); return Err(());}
             }
         }
-        Ok(())
+        Ok(Some(()))
     }
 }

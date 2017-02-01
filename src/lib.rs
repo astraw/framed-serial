@@ -195,7 +195,7 @@ impl<S> FramedConnection<S>
                         false => s.frame[s.index],
                     };
                     match self.serial.putc_try(byte) {
-                        Ok(()) => {
+                        Ok(Some(())) => {
                             s.index += 1;
                             if s.is_header {
                                 if s.index == 2 {
@@ -209,9 +209,11 @@ impl<S> FramedConnection<S>
                                 }
                             }
                         },
-                        Err(_) => {
-                            // error during send
+                        Ok(None) => {
                             return false;
+                        },
+                        Err(_) => {
+                            panic!("unexpected error during putc_try()");
                         }
                     }
                 }
@@ -233,7 +235,7 @@ impl<S> FramedConnection<S>
             }
 
             match self.serial.getc_try() {
-                Ok(byte) => {
+                Ok(Some(byte)) => {
                     let mut new_state: Option<RecvState> = None;
                     match self.recv_state {
                         RecvState::Header(ref mut hs) => {
@@ -258,9 +260,12 @@ impl<S> FramedConnection<S>
                         self.recv_state=ns;
                     }
                 },
-                Err(_) => {
+                Ok(None) => {
                     // no more data available
                     break;
+                },
+                Err(_) => {
+                    panic!("unexpected error during getc_try()");
                 },
             };
 

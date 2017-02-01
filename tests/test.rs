@@ -15,19 +15,19 @@ impl MockSerial {
 
 impl embedded_serial::NonBlockingRx for MockSerial {
     type Error=();
-    fn getc_try(&mut self) -> Result<u8, Self::Error> {
+    fn getc_try(&mut self) -> Result<Option<u8>, Self::Error> {
         if self.in_flight.len() < 1 {
-            return Err(());
+            return Ok(None);
         }
-        Ok( self.in_flight.remove(0) )
+        Ok( Some(self.in_flight.remove(0)) )
     }
 }
 
 impl embedded_serial::NonBlockingTx for MockSerial {
     type Error=();
-    fn putc_try(&mut self, ch: u8) -> Result<(), Self::Error> {
+    fn putc_try(&mut self, ch: u8) -> Result<Option<()>, Self::Error> {
         self.in_flight.push(ch);
-        Ok(())
+        Ok(Some(()))
     }
 }
 
