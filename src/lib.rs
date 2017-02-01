@@ -88,6 +88,9 @@ mod serialwrap;
 #[cfg(feature = "std")]
 pub use serialwrap::SerialWrap;
 
+/// A marker which appears only rarely in stream, used to catch frame start.
+pub const SENTINEL: u8 = 0xFF;
+
 struct HeaderState {
     bytes: [u8; 2],
     index: usize,
@@ -98,12 +101,19 @@ struct DataState {
 }
 
 enum RecvState {
+    Unknown,
     Header(HeaderState),
     Data(DataState),
 }
 
+enum WhatNext {
+    Sentinel,
+    Header,
+    Data,
+}
+
 struct SendingState{
-    is_header: bool,
+    what_next: WhatNext,
     index: usize,
     header_bytes: [u8; 2],
     frame: Vec<u8>,
@@ -148,7 +158,7 @@ impl<S> FramedConnection<S>
     }
 
     fn _start_recv_state() -> RecvState {
-        RecvState::Header( HeaderState{bytes: [0, 0], index: 0})
+        RecvState::Unknown
     }
 
     fn _start_send_state() -> SendState {
@@ -165,7 +175,7 @@ impl<S> FramedConnection<S>
         byteorder::LittleEndian::write_u16(&mut buf, frame.len() as u16);
         self.send_state = SendState::Sending( {
             SendingState{
-                is_header: true,
+                what_next: WhatNext::Sentinel,
                 index: 0,
                 header_bytes: buf,
                 frame: frame,
@@ -190,23 +200,35 @@ impl<S> FramedConnection<S>
             SendState::Sending(ref mut s) => {
                 loop {
                     // while we are not blocked on send, keep sending.
-                    let byte = match s.is_header {
-                        true => s.header_bytes[s.index],
-                        false => s.frame[s.index],
+                    let byte = match s.what_next {
+                        WhatNext::Sentinel => SENTINEL,
+                        WhatNext::Header => s.header_bytes[s.index],
+                        WhatNext::Data => s.frame[s.index],
                     };
                     match self.serial.putc_try(byte) {
                         Ok(Some(())) => {
                             s.index += 1;
-                            if s.is_header {
-                                if s.index == 2 {
-                                    s.is_header = false;
+                            let mut new_next: Option<WhatNext> = None;
+                            match s.what_next {
+                                WhatNext::Sentinel => {
+                                    new_next = Some(WhatNext::Header);
                                     s.index = 0;
-                                }
-                            } else {
-                                if s.index == s.frame.len() {
-                                    // don't send more
-                                    break;
-                                }
+                                },
+                                WhatNext::Header => {
+                                    if s.index == 2 {
+                                        new_next = Some(WhatNext::Data);
+                                        s.index = 0;
+                                    }
+                                },
+                                WhatNext::Data => {
+                                    if s.index == s.frame.len() {
+                                        // don't send more
+                                        break;
+                                    }
+                                },
+                            }
+                            if let Some(nn) = new_next {
+                                s.what_next = nn;
                             }
                         },
                         Ok(None) => {
@@ -238,6 +260,11 @@ impl<S> FramedConnection<S>
                 Ok(Some(byte)) => {
                     let mut new_state: Option<RecvState> = None;
                     match self.recv_state {
+                        RecvState::Unknown => {
+                            if byte == SENTINEL {
+                                new_state = Some(RecvState::Header(HeaderState{bytes: [0, 0], index: 0}))
+                            }
+                        },
                         RecvState::Header(ref mut hs) => {
                             hs.bytes[hs.index] = byte;
                             hs.index += 1;
@@ -276,7 +303,7 @@ impl<S> FramedConnection<S>
     /// Check if frame is complete.
     fn is_frame_complete(&mut self) -> bool {
         match self.recv_state {
-            RecvState::Header(_) => false,
+            RecvState::Unknown | RecvState::Header(_) => false,
             RecvState::Data(ref ds) => ds.length == self.recv_buf.len(),
         }
     }
@@ -284,7 +311,7 @@ impl<S> FramedConnection<S>
     /// Get completed frame.
     pub fn get_frame(&mut self) -> Result<Vec<u8>,()> {
         let frame = match self.recv_state {
-            RecvState::Header(_) => {
+            RecvState::Unknown | RecvState::Header(_) => {
                 return Err(());
             },
             RecvState::Data(ref ds) => {
