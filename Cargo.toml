@@ -8,6 +8,7 @@ homepage = "https://github.com/astraw/framed-serial"
 repository = "https://github.com/astraw/framed-serial"
 documentation = "https://docs.rs/framed-serial/"
 keywords = ["serial", "embedded", "frames", "no_std"]
+categories = ["network-programming"]
 readme = "README.md"
 
 [dependencies]
