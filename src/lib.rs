@@ -27,7 +27,7 @@
 //! use serial::SerialPort;
 //!
 //! #[cfg(feature = "std")]
-//! fn wait_for_frame() {
+//! fn wait_for_frame() -> Result<(),framed_serial::Error> {
 //!
 //!     let mut raw = serial::open("/dev/ttyACM0").expect("open serial port");
 //!
@@ -41,12 +41,13 @@
 //!     // sending with FramedConnection.
 //!     loop {
 //!         let tick_state = conn.tick();
-//!         if tick_state.recv_is_done {
-//!             let data = conn.get_frame().expect("get_frame()");
+//!         if tick_state?.recv_is_done {
+//!             let data = conn.get_frame()?;
 //!             println!("{:?}", data);
 //!             break;
 //!         }
 //!     }
+//!     Ok(())
 //! }
 //!
 //! // This example requires std to compile. To run successfully, it further requires a connected
@@ -55,7 +56,7 @@
 //!
 //! #[cfg(feature = "device_connected")]
 //! fn main() {
-//!     wait_for_frame();
+//!     wait_for_frame().unwrap();
 //! }
 //! #[cfg(not(feature = "device_connected"))]
 //! fn main() {
@@ -77,6 +78,8 @@ extern crate serial;
 #[cfg(feature = "std")]
 mod core {
     pub use std::mem;
+    pub use std::fmt;
+    pub use std::result;
 }
 
 use embedded_serial::{NonBlockingTx, NonBlockingRx};
@@ -90,6 +93,31 @@ mod serialwrap;
 
 #[cfg(feature = "std")]
 pub use serialwrap::SerialWrap;
+
+#[cfg(not(feature = "std"))]
+use collections::String;
+
+use core::fmt::Display;
+
+#[cfg(not(feature = "std"))]
+use core::fmt::Debug;
+
+#[cfg(feature = "std")]
+use std::error::Error as StdError;
+
+/// A replacement for std::error::Error
+#[cfg(not(feature = "std"))]
+pub trait StdError: Debug + Display {
+    /// A short description of the error.
+    ///
+    /// The description should not contain newlines or sentence-ending
+    /// punctuation, to facilitate embedding in larger user-facing
+    /// strings.
+    fn description(&self) -> &str;
+
+    /// The lower-level cause of this error, if any.
+    fn cause(&self) -> Option<&StdError> { None }
+}
 
 /// A marker which appears only rarely in stream, used to catch frame start.
 pub const SENTINEL: u8 = 0xFF;
@@ -135,6 +163,33 @@ pub struct TickProgress {
     pub send_is_done: bool,
 }
 
+/// Error type.
+#[derive(Debug)]
+pub struct Error {
+    descr: String,
+}
+
+impl Error {
+    /// create a new Error
+    pub fn new(s: String) -> Error {
+        Error { descr: s }
+    }
+}
+
+impl StdError for Error {
+    fn description(&self) -> &str {
+        return &self.descr;
+    }
+}
+
+type Result<T> = core::result::Result<T,Error>;
+
+impl Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "Error: {}", self.description())
+    }
+}
+
 /// Wrapper around a serial port to provide framed connections.
 ///
 /// See the module level documentation for more information.
@@ -168,11 +223,11 @@ impl<S> FramedConnection<S>
         SendState::NotSending
     }
 
-    /// Schedule a frame to be sent. Returns `Err(())` if the frame is too long,
+    /// Schedule a frame to be sent. Returns `Err(Error)` if the frame is too long,
     /// otherwise returns immediately with `Ok(())`.
-    pub fn schedule_send(&mut self, frame: Vec<u8>) -> Result<(),()> {
+    pub fn schedule_send(&mut self, frame: Vec<u8>) -> Result<()> {
         if frame.len() > u16::max_value() as usize {
-            return Err(());
+            return Err(Error::new("frame data too long".into()));
         }
         let mut buf = [0; 2];
         byteorder::LittleEndian::write_u16(&mut buf, frame.len() as u16);
@@ -187,18 +242,18 @@ impl<S> FramedConnection<S>
     }
 
     /// Service the connection.
-    pub fn tick(&mut self) -> TickProgress {
-        TickProgress {
-            send_is_done: self._send_tick(),
-            recv_is_done: self._recv_tick(),
-        }
+    pub fn tick(&mut self) -> Result<TickProgress> {
+        Ok(TickProgress {
+            send_is_done: self._send_tick()?,
+            recv_is_done: self._recv_tick()?,
+        })
     }
 
     /// return bool to describe whether send is done.
-    fn _send_tick(&mut self) -> bool {
+    fn _send_tick(&mut self) -> Result<bool> {
         match self.send_state {
             SendState::NotSending => {
-                return true;
+                return Ok(true);
             },
             SendState::Sending(ref mut s) => {
                 loop {
@@ -235,10 +290,10 @@ impl<S> FramedConnection<S>
                             }
                         },
                         Ok(None) => {
-                            return false;
+                            return Ok(false);
                         },
                         Err(_) => {
-                            panic!("unexpected error during putc_try()");
+                            return Err(Error::new("unexpected error during putc_try()".into()));
                         }
                     }
                 }
@@ -246,17 +301,17 @@ impl<S> FramedConnection<S>
         }
         // we have completed sending a frame
         self.send_state = SendState::NotSending;
-        true
+        Ok(true)
     }
 
     /// return bool to describe whether recv is done.
-    fn _recv_tick(&mut self) -> bool {
+    fn _recv_tick(&mut self) -> Result<bool> {
 
         loop {
             // While we get characters, keep looping.
 
             if self.is_frame_complete() {
-                return true;
+                return Ok(true);
             }
 
             match self.serial.getc_try() {
@@ -282,7 +337,7 @@ impl<S> FramedConnection<S>
                             self.recv_buf.push(byte);
                             if self.recv_buf.len() == ds.length {
                                 // this frame is complete, stop polling for new data
-                                return true;
+                                return Ok(true);
                             }
                         },
                     };
@@ -295,12 +350,12 @@ impl<S> FramedConnection<S>
                     break;
                 },
                 Err(_) => {
-                    panic!("unexpected error during getc_try()");
+                    return Err(Error::new("unexpected error during getc_try()".into()))
                 },
             };
 
         }
-        false
+        Ok(false)
     }
 
     /// Check if frame is complete.
@@ -312,10 +367,10 @@ impl<S> FramedConnection<S>
     }
 
     /// Get completed frame.
-    pub fn get_frame(&mut self) -> Result<Vec<u8>,()> {
+    pub fn get_frame(&mut self) -> Result<Vec<u8>> {
         let frame = match self.recv_state {
             RecvState::Unknown | RecvState::Header(_) => {
-                return Err(());
+                return Err(Error::new("frame not available".into()));
             },
             RecvState::Data(ref ds) => {
                 if self.recv_buf.len() == ds.length {
@@ -323,7 +378,7 @@ impl<S> FramedConnection<S>
                     core::mem::swap(&mut self.recv_buf,&mut frame);
                     frame
                 } else {
-                    return Err(());
+                    return Err(Error::new("frame not available".into()));
                 }
             },
         };

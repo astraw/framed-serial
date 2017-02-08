@@ -4,6 +4,13 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
+## unreleased
+
+### Changed
+
+* Implemented `framed_serial::Error` and `framed_serial::Result` types.
+  Changed the API to use them. Removed all potential panics.
+
 ## [0.2.0] - 2017-02-01
 
 ### Changed

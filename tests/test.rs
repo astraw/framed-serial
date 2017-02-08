@@ -36,7 +36,7 @@ fn test_buffer(original: &[u8]) {
     conn.schedule_send(original.to_vec()).unwrap();
     loop {
         let tick_state = conn.tick();
-        if tick_state.recv_is_done {
+        if tick_state.unwrap().recv_is_done {
             let valid = conn.get_frame().unwrap();
             assert!(valid == original);
 
@@ -57,7 +57,7 @@ extern crate serial;
 // Always compile this with std, but only run with device_connected.
 #[allow(dead_code)]
 #[cfg(feature = "std")]
-fn wait_for_frame() {
+fn wait_for_frame() -> Result<(),framed_serial::Error> {
 
     let raw = serial::open("/dev/ttyACM0").expect("open serial port");
 
@@ -68,16 +68,17 @@ fn wait_for_frame() {
     // Loop until we get a frame. This requires a connected device sending with FramedConnection.
     loop {
         let tick_state = conn.tick();
-        if tick_state.recv_is_done {
-            let data = conn.get_frame().expect("get_frame()");
+        if tick_state?.recv_is_done {
+            let data = conn.get_frame()?;
             println!("{:?}", data);
             break;
         }
     }
+    Ok(())
 }
 
 #[cfg(feature = "device_connected")]
 #[test]
 fn test_wait_for_frame() {
-    wait_for_frame();
+    wait_for_frame().unwrap();
 }
