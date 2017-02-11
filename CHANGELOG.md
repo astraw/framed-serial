@@ -10,6 +10,8 @@ for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/
 
 * Implemented `framed_serial::Error` and `framed_serial::Result` types.
   Changed the API to use them. Removed all potential panics.
+* Tests using serial device use port specified by environment variable
+  `DEVICE`.
 
 ## [0.2.0] - 2017-02-01
 

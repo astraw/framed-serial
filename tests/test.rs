@@ -59,7 +59,13 @@ extern crate serial;
 #[cfg(feature = "std")]
 fn wait_for_frame() -> Result<(),framed_serial::Error> {
 
-    let raw = serial::open("/dev/ttyACM0").expect("open serial port");
+    let device = match std::env::var("DEVICE") {
+        Ok(val) => val,
+        Err(_) => "/dev/ttyACM0".to_string(),
+    };
+    println!("opening device {}", device);
+
+    let raw = serial::open(&device).expect("open serial port");
 
     let my_ser = framed_serial::SerialWrap::new(raw);
     let mut conn = framed_serial::FramedConnection::new(my_ser);

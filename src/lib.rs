@@ -29,7 +29,12 @@
 //! #[cfg(feature = "std")]
 //! fn wait_for_frame() -> Result<(),framed_serial::Error> {
 //!
-//!     let mut raw = serial::open("/dev/ttyACM0").expect("open serial port");
+//!     let device = match std::env::var("DEVICE") {
+//!         Ok(val) => val,
+//!         Err(_) => "/dev/ttyACM0".to_string(),
+//!     };
+//!     println!("opening device {}", device);
+//!     let mut raw = serial::open(&device).expect("open serial port");
 //!
 //!     // Async processing depends on this being short.
 //!     raw.set_timeout(std::time::Duration::from_millis(100)).expect("set_timeout");
