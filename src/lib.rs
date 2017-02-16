@@ -45,8 +45,8 @@
 //!     // Loop until we get a frame. This requires a connected device
 //!     // sending with FramedConnection.
 //!     loop {
-//!         let tick_state = conn.tick();
-//!         if tick_state?.recv_is_done {
+//!         let tick_state = conn.tick()?;
+//!         if tick_state.recv_is_done {
 //!             let data = conn.get_frame()?;
 //!             println!("{:?}", data);
 //!             break;
