@@ -231,6 +231,13 @@ impl<S> FramedConnection<S>
     /// Schedule a frame to be sent. Returns `Err(Error)` if the frame is too long,
     /// otherwise returns immediately with `Ok(())`.
     pub fn schedule_send(&mut self, frame: Vec<u8>) -> Result<()> {
+        match self.send_state {
+            SendState::NotSending => {}
+            SendState::Sending(_) => {
+                return Err(Error::new("Previous send in progress. Hint: block_until_send_done().".into()));
+            }
+        }
+
         if frame.len() > u16::max_value() as usize {
             return Err(Error::new("frame data too long".into()));
         }
@@ -243,6 +250,18 @@ impl<S> FramedConnection<S>
                 header_bytes: buf,
                 frame: frame,
             }});
+        Ok(())
+    }
+
+    /// Wait until previous send is done.
+    pub fn block_until_send_done(&mut self) -> Result<()> {
+        loop {
+            match self.send_state {
+                SendState::NotSending => {break;}
+                SendState::Sending(_) => {}
+            }
+            self.tick()?;
+        }
         Ok(())
     }
 
