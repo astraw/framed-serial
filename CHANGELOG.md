@@ -4,6 +4,17 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
+## [0.3.1] - 2017-02-19
+
+### Changed
+
+* Error return when attempting to send while previous send ongoing.
+
+### Added
+
+* Implemented `FramedConnection::block_until_send_done()` to wait for
+  previous send to complete.
+
 ## [0.3.0] - 2017-02-11
 
 ### Changed
