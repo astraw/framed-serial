@@ -50,17 +50,16 @@ impl<T> embedded_serial::NonBlockingTx for SerialWrap<T>
     type Error=Error;
     fn putc_try(&mut self, ch: u8) -> Result<Option<()>, Self::Error> {
         let buf: [u8; 1] = [ch];
-        loop {
-            match self.inner.write(&buf) {
-                Ok(1) => {break;},
-                Ok(n_bytes) => {
-                    return Err(Error::new(format!("no error, but {} bytes written", n_bytes)));
-                },
-                Err(e) => {
-                    return Err(Error::new(format!("write error {:?}",e)));
-                },
-            }
+        match self.inner.write(&buf) {
+            Ok(1) => {
+                return Ok(Some(()));
+            },
+            Ok(n_bytes) => {
+                return Err(Error::new(format!("no error, but {} bytes written", n_bytes)));
+            },
+            Err(e) => {
+                return Err(Error::new(format!("write error {:?}",e)));
+            },
         }
-        Ok(Some(()))
     }
 }
