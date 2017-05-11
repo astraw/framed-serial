@@ -25,9 +25,9 @@ impl embedded_serial::NonBlockingRx for MockSerial {
 
 impl embedded_serial::NonBlockingTx for MockSerial {
     type Error=();
-    fn putc_try(&mut self, ch: u8) -> Result<Option<()>, Self::Error> {
+    fn putc_try(&mut self, ch: u8) -> Result<Option<u8>, Self::Error> {
         self.in_flight.push(ch);
-        Ok(Some(()))
+        Ok(Some(ch))
     }
 }
 

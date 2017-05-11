@@ -12,7 +12,7 @@ categories = ["network-programming"]
 readme = "README.md"
 
 [dependencies]
-embedded-serial = "0.4"
+embedded-serial = "0.5"
 byteorder = { version = "1", default-features = false }
 serial = {version = "0.3", optional = true }
 

@@ -288,7 +288,7 @@ impl<S> FramedConnection<S>
                         WhatNext::Data => s.frame[s.index],
                     };
                     match self.serial.putc_try(byte) {
-                        Ok(Some(())) => {
+                        Ok(Some(_)) => {
                             s.index += 1;
                             let mut new_next: Option<WhatNext> = None;
                             match s.what_next {

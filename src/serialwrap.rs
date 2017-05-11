@@ -48,14 +48,25 @@ impl<T> embedded_serial::NonBlockingTx for SerialWrap<T>
     where T: SerialPort,
 {
     type Error=Error;
-    fn putc_try(&mut self, ch: u8) -> Result<Option<()>, Self::Error> {
+
+    /// Try and write a single octet to the port's transmitter.
+    /// Will return `Ok(None)` if the FIFO/buffer was full
+    /// and the octet couldn't be stored or `Ok(Some(ch))`
+    /// if it was stored OK.
+    ///
+    /// In some implementations, this can result in an Error.
+    /// If not, use `type Error = !`.
+    fn putc_try(&mut self, ch: u8) -> Result<Option<u8>, Self::Error> {
         let buf: [u8; 1] = [ch];
         match self.inner.write(&buf) {
-            Ok(1) => {
-                return Ok(Some(()));
+            Ok(0) => {
+                return Ok(None);
             },
-            Ok(n_bytes) => {
-                return Err(Error::new(format!("no error, but {} bytes written", n_bytes)));
+            Ok(1) => {
+                return Ok(Some(ch));
+            },
+            Ok(_) => {
+                unreachable!();
             },
             Err(e) => {
                 return Err(Error::new(format!("write error {:?}",e)));
